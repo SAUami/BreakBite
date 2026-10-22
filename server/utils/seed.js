@@ -233,14 +233,41 @@ async function seedDatabase() {
     await Order.deleteMany({});
     await GroupCart.deleteMany({});
 
-    console.log('[Seed] Creating demo user accounts...');
-    const studentUser = await User.create({
+    console.log('[Seed] Creating demo student & canteen accounts...');
+    const studentUser1 = await User.create({
       name: 'Aarav Sharma',
       email: 'student@demo.com',
       password: 'password123',
       role: 'student',
       studentId: 'GIIT-2024-CS081',
       phone: '9876543210',
+    });
+
+    const studentUser2 = await User.create({
+      name: 'Priya Patel',
+      email: 'priya@demo.com',
+      password: 'password123',
+      role: 'student',
+      studentId: 'GIIT-2024-EC042',
+      phone: '9876501234',
+    });
+
+    const studentUser3 = await User.create({
+      name: 'Rohit Verma',
+      email: 'rohit@demo.com',
+      password: 'password123',
+      role: 'student',
+      studentId: 'GIIT-2024-ME019',
+      phone: '9898981234',
+    });
+
+    const studentUser4 = await User.create({
+      name: 'Ananya Singh',
+      email: 'ananya@demo.com',
+      password: 'password123',
+      role: 'student',
+      studentId: 'GIIT-2024-IT055',
+      phone: '9811223344',
     });
 
     const canteenUser = await User.create({
@@ -255,110 +282,243 @@ async function seedDatabase() {
     console.log('[Seed] Inserting 16 delicious Indian canteen menu items...');
     const createdMenuItems = await MenuItem.insertMany(sampleMenuItems);
 
-    console.log('[Seed] Generating initial demo orders to showcase live Bell-Sync & kitchen load...');
+    console.log('[Seed] Generating realistic multi-day student orders for rich Day-Wise Analytics & Excel export...');
     const now = new Date();
 
-    // Order 1: Ready for pickup (placed 12 mins ago, ready now)
-    const order1Items = [
+    // Helper to calculate past date
+    const daysAgo = (days, hours = 12, mins = 30) => {
+      const d = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      d.setHours(hours, mins, 0, 0);
+      return d;
+    };
+
+    // Find items by name
+    const getItem = (name) => createdMenuItems.find((i) => i.name === name) || createdMenuItems[0];
+
+    const historicalOrders = [
+      // -------------------------------------------------------------
+      // TODAY (Day 0) - Active Orders & Morning Completed
+      // -------------------------------------------------------------
       {
-        menuItem: createdMenuItems[0]._id, // Samosa Pav
-        name: createdMenuItems[0].name,
-        price: createdMenuItems[0].price,
-        quantity: 2,
-        isVeg: true,
-        prepTimeMinutes: 4,
+        orderNumber: 'BB-101',
+        user: studentUser1._id,
+        items: [
+          { menuItem: getItem('Crispy Samosa Pav')._id, name: 'Crispy Samosa Pav', price: 20, quantity: 2, isVeg: true, prepTimeMinutes: 4 },
+          { menuItem: getItem('Adrak Masala Chai')._id, name: 'Adrak Masala Chai', price: 15, quantity: 1, isVeg: true, prepTimeMinutes: 3 },
+        ],
+        subtotal: 55,
+        total: 55,
+        status: 'Ready',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '10:15', slotLabel: '10:15 AM 🔔 Lecture 1 Break' },
+        scheduledPickupTime: new Date(now.getTime() + 2 * 60 * 1000),
+        fireTime: new Date(now.getTime() - 8 * 60 * 1000),
+        estimatedReadyTime: new Date(now.getTime()),
+        leaveNowTime: new Date(now.getTime() - 4 * 60 * 1000),
+        walkingMinutes: 4,
+        specialInstructions: 'Make the chai extra ginger / kadak please!',
+        pickupToken: 'BB-101',
+        qrCodeValue: `BREAKBITE:BB-101:${studentUser1._id}:55`,
+        createdAt: new Date(now.getTime() - 15 * 60 * 1000),
       },
       {
-        menuItem: createdMenuItems[1]._id, // Chai
-        name: createdMenuItems[1].name,
-        price: createdMenuItems[1].price,
-        quantity: 1,
-        isVeg: true,
-        prepTimeMinutes: 3,
+        orderNumber: 'BB-102',
+        user: studentUser2._id,
+        items: [
+          { menuItem: getItem('Paneer Tikka Kathi Roll')._id, name: 'Paneer Tikka Kathi Roll', price: 80, quantity: 1, isVeg: true, prepTimeMinutes: 8 },
+          { menuItem: getItem('Thick Cold Coffee with Ice Cream')._id, name: 'Thick Cold Coffee with Ice Cream', price: 45, quantity: 1, isVeg: true, prepTimeMinutes: 4 },
+        ],
+        subtotal: 125,
+        total: 125,
+        status: 'Preparing',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '13:10', slotLabel: '1:10 PM 🔔 Recess / Lunch' },
+        scheduledPickupTime: new Date(now.getTime() + 10 * 60 * 1000),
+        fireTime: new Date(now.getTime() - 2 * 60 * 1000),
+        estimatedReadyTime: new Date(now.getTime() + 7 * 60 * 1000),
+        leaveNowTime: new Date(now.getTime() + 3 * 60 * 1000),
+        walkingMinutes: 4,
+        specialInstructions: 'Less ice in cold coffee.',
+        pickupToken: 'BB-102',
+        qrCodeValue: `BREAKBITE:BB-102:${studentUser2._id}:125`,
+        createdAt: new Date(now.getTime() - 5 * 60 * 1000),
+      },
+      {
+        orderNumber: 'BB-103',
+        user: studentUser3._id,
+        items: [
+          { menuItem: getItem('Crispy Samosa Pav')._id, name: 'Crispy Samosa Pav', price: 20, quantity: 3, isVeg: true, prepTimeMinutes: 4 },
+          { menuItem: getItem('Adrak Masala Chai')._id, name: 'Adrak Masala Chai', price: 15, quantity: 2, isVeg: true, prepTimeMinutes: 3 },
+        ],
+        subtotal: 90,
+        total: 90,
+        status: 'Collected',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '09:45', slotLabel: '9:45 AM Express' },
+        scheduledPickupTime: new Date(now.getTime() - 40 * 60 * 1000),
+        fireTime: new Date(now.getTime() - 46 * 60 * 1000),
+        estimatedReadyTime: new Date(now.getTime() - 40 * 60 * 1000),
+        leaveNowTime: new Date(now.getTime() - 44 * 60 * 1000),
+        walkingMinutes: 4,
+        specialInstructions: 'Extra green chutney.',
+        pickupToken: 'BB-103',
+        qrCodeValue: `BREAKBITE:BB-103:${studentUser3._id}:90`,
+        createdAt: new Date(now.getTime() - 60 * 60 * 1000),
+      },
+
+      // -------------------------------------------------------------
+      // YESTERDAY (Day 1) - Bestseller: Delhi Style Chole Bhature
+      // -------------------------------------------------------------
+      {
+        orderNumber: 'BB-089',
+        user: studentUser4._id,
+        items: [
+          { menuItem: getItem('Delhi Style Chole Bhature')._id, name: 'Delhi Style Chole Bhature', price: 75, quantity: 2, isVeg: true, prepTimeMinutes: 10 },
+          { menuItem: getItem('Kesariya Mango Lassi')._id, name: 'Kesariya Mango Lassi', price: 40, quantity: 2, isVeg: true, prepTimeMinutes: 3 },
+        ],
+        subtotal: 230,
+        total: 230,
+        status: 'Collected',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '13:10', slotLabel: '1:10 PM 🔔 Recess / Lunch' },
+        scheduledPickupTime: daysAgo(1, 13, 10),
+        fireTime: daysAgo(1, 13, 0),
+        estimatedReadyTime: daysAgo(1, 13, 10),
+        leaveNowTime: daysAgo(1, 13, 6),
+        walkingMinutes: 4,
+        specialInstructions: 'Well puffed bhature with sliced onions.',
+        pickupToken: 'BB-089',
+        qrCodeValue: 'BREAKBITE:BB-089:230',
+        createdAt: daysAgo(1, 12, 45),
+      },
+      {
+        orderNumber: 'BB-090',
+        user: studentUser1._id,
+        items: [
+          { menuItem: getItem('Delhi Style Chole Bhature')._id, name: 'Delhi Style Chole Bhature', price: 75, quantity: 1, isVeg: true, prepTimeMinutes: 10 },
+        ],
+        subtotal: 75,
+        total: 75,
+        status: 'Collected',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '13:15', slotLabel: '1:15 PM Lunch' },
+        scheduledPickupTime: daysAgo(1, 13, 15),
+        fireTime: daysAgo(1, 13, 5),
+        estimatedReadyTime: daysAgo(1, 13, 15),
+        leaveNowTime: daysAgo(1, 13, 11),
+        walkingMinutes: 4,
+        specialInstructions: '',
+        pickupToken: 'BB-090',
+        qrCodeValue: 'BREAKBITE:BB-090:75',
+        createdAt: daysAgo(1, 12, 55),
+      },
+      {
+        orderNumber: 'BB-091',
+        user: studentUser2._id,
+        items: [
+          { menuItem: getItem('College Special Veg Maggi')._id, name: 'College Special Veg Maggi', price: 35, quantity: 2, isVeg: true, prepTimeMinutes: 5 },
+          { menuItem: getItem('Thick Cold Coffee with Ice Cream')._id, name: 'Thick Cold Coffee with Ice Cream', price: 45, quantity: 1, isVeg: true, prepTimeMinutes: 4 },
+        ],
+        subtotal: 115,
+        total: 115,
+        status: 'Collected',
+        pickupMode: 'asap',
+        pickupSlot: { slotTime: '16:00', slotLabel: '4:00 PM Evening Snack' },
+        scheduledPickupTime: daysAgo(1, 16, 5),
+        fireTime: daysAgo(1, 16, 0),
+        estimatedReadyTime: daysAgo(1, 16, 5),
+        leaveNowTime: daysAgo(1, 16, 1),
+        walkingMinutes: 4,
+        specialInstructions: 'Spicy maggi.',
+        pickupToken: 'BB-091',
+        qrCodeValue: 'BREAKBITE:BB-091:115',
+        createdAt: daysAgo(1, 15, 50),
+      },
+
+      // -------------------------------------------------------------
+      // 2 DAYS AGO (Day 2) - Bestseller: Mumbai Butter Pav Bhaji
+      // -------------------------------------------------------------
+      {
+        orderNumber: 'BB-075',
+        user: studentUser3._id,
+        items: [
+          { menuItem: getItem('Mumbai Butter Pav Bhaji')._id, name: 'Mumbai Butter Pav Bhaji', price: 70, quantity: 2, isVeg: true, prepTimeMinutes: 8 },
+          { menuItem: getItem('Warm Gulab Jamun (2 Pcs)')._id, name: 'Warm Gulab Jamun (2 Pcs)', price: 30, quantity: 1, isVeg: true, prepTimeMinutes: 2 },
+        ],
+        subtotal: 170,
+        total: 170,
+        status: 'Collected',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '13:10', slotLabel: '1:10 PM 🔔 Recess / Lunch' },
+        scheduledPickupTime: daysAgo(2, 13, 10),
+        fireTime: daysAgo(2, 13, 2),
+        estimatedReadyTime: daysAgo(2, 13, 10),
+        leaveNowTime: daysAgo(2, 13, 6),
+        walkingMinutes: 4,
+        specialInstructions: 'Butter tossed pav.',
+        pickupToken: 'BB-075',
+        qrCodeValue: 'BREAKBITE:BB-075:170',
+        createdAt: daysAgo(2, 12, 50),
+      },
+      {
+        orderNumber: 'BB-076',
+        user: studentUser4._id,
+        items: [
+          { menuItem: getItem('Mumbai Butter Pav Bhaji')._id, name: 'Mumbai Butter Pav Bhaji', price: 70, quantity: 1, isVeg: true, prepTimeMinutes: 8 },
+          { menuItem: getItem('Adrak Masala Chai')._id, name: 'Adrak Masala Chai', price: 15, quantity: 2, isVeg: true, prepTimeMinutes: 3 },
+        ],
+        subtotal: 100,
+        total: 100,
+        status: 'Collected',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '13:15', slotLabel: '1:15 PM' },
+        scheduledPickupTime: daysAgo(2, 13, 15),
+        fireTime: daysAgo(2, 13, 7),
+        estimatedReadyTime: daysAgo(2, 13, 15),
+        leaveNowTime: daysAgo(2, 13, 11),
+        walkingMinutes: 4,
+        specialInstructions: '',
+        pickupToken: 'BB-076',
+        qrCodeValue: 'BREAKBITE:BB-076:100',
+        createdAt: daysAgo(2, 13, 0),
+      },
+
+      // -------------------------------------------------------------
+      // 3 DAYS AGO (Day 3) - Bestseller: College Special Veg Maggi
+      // -------------------------------------------------------------
+      {
+        orderNumber: 'BB-061',
+        user: studentUser1._id,
+        items: [
+          { menuItem: getItem('College Special Veg Maggi')._id, name: 'College Special Veg Maggi', price: 35, quantity: 3, isVeg: true, prepTimeMinutes: 5 },
+          { menuItem: getItem('South Indian Filter Coffee')._id, name: 'South Indian Filter Coffee', price: 20, quantity: 2, isVeg: true, prepTimeMinutes: 3 },
+        ],
+        subtotal: 145,
+        total: 145,
+        status: 'Collected',
+        pickupMode: 'bell_sync',
+        pickupSlot: { slotTime: '15:30', slotLabel: '3:30 PM 🔔 Afternoon Tea' },
+        scheduledPickupTime: daysAgo(3, 15, 30),
+        fireTime: daysAgo(3, 15, 24),
+        estimatedReadyTime: daysAgo(3, 15, 30),
+        leaveNowTime: daysAgo(3, 15, 26),
+        walkingMinutes: 4,
+        specialInstructions: 'Extra cheese on maggi please.',
+        pickupToken: 'BB-061',
+        qrCodeValue: 'BREAKBITE:BB-061:145',
+        createdAt: daysAgo(3, 15, 10),
       },
     ];
-    const order1Subtotal = 20 * 2 + 15;
 
-    await Order.create({
-      orderNumber: 'BB-101',
-      user: studentUser._id,
-      items: order1Items,
-      subtotal: order1Subtotal,
-      convenienceFee: 0,
-      total: order1Subtotal,
-      status: 'Ready',
-      pickupMode: 'bell_sync',
-      pickupSlot: {
-        slotTime: now.toTimeString().substring(0, 5),
-        slotLabel: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🔔 Class End`,
-      },
-      scheduledPickupTime: new Date(now.getTime() + 2 * 60 * 1000),
-      fireTime: new Date(now.getTime() - 8 * 60 * 1000),
-      estimatedReadyTime: new Date(now.getTime()),
-      leaveNowTime: new Date(now.getTime() - 4 * 60 * 1000),
-      walkingMinutes: 4,
-      specialInstructions: 'Make the chai extra ginger / kadak please!',
-      pickupToken: 'BB-101',
-      qrCodeValue: `BREAKBITE:BB-101:${studentUser._id}:${order1Subtotal}`,
-      statusHistory: [
-        { status: 'Placed', timestamp: new Date(now.getTime() - 15 * 60 * 1000), note: 'Order registered.' },
-        { status: 'Preparing', timestamp: new Date(now.getTime() - 8 * 60 * 1000), note: 'Chai and Samosas frying in pan.' },
-        { status: 'Ready', timestamp: new Date(now.getTime() - 1 * 60 * 1000), note: 'Ready at Counter 2.' },
-      ],
-    });
+    await Order.insertMany(historicalOrders);
 
-    // Order 2: Preparing (fajita roll & cold coffee)
-    const order2Items = [
-      {
-        menuItem: createdMenuItems[4]._id, // Paneer Roll
-        name: createdMenuItems[4].name,
-        price: createdMenuItems[4].price,
-        quantity: 1,
-        isVeg: true,
-        prepTimeMinutes: 8,
-      },
-      {
-        menuItem: createdMenuItems[6]._id, // Cold Coffee
-        name: createdMenuItems[6].name,
-        price: createdMenuItems[6].price,
-        quantity: 1,
-        isVeg: true,
-        prepTimeMinutes: 4,
-      },
-    ];
-    const order2Subtotal = 80 + 45;
-
-    await Order.create({
-      orderNumber: 'BB-102',
-      user: studentUser._id,
-      items: order2Items,
-      subtotal: order2Subtotal,
-      convenienceFee: 0,
-      total: order2Subtotal,
-      status: 'Preparing',
-      pickupMode: 'bell_sync',
-      pickupSlot: {
-        slotTime: '13:10',
-        slotLabel: '1:10 PM 🔔 Recess / Lunch',
-      },
-      scheduledPickupTime: new Date(now.getTime() + 10 * 60 * 1000),
-      fireTime: new Date(now.getTime() - 2 * 60 * 1000),
-      estimatedReadyTime: new Date(now.getTime() + 7 * 60 * 1000),
-      leaveNowTime: new Date(now.getTime() + 3 * 60 * 1000),
-      walkingMinutes: 4,
-      specialInstructions: 'Less ice in cold coffee.',
-      pickupToken: 'BB-102',
-      qrCodeValue: `BREAKBITE:BB-102:${studentUser._id}:${order2Subtotal}`,
-      statusHistory: [
-        { status: 'Placed', timestamp: new Date(now.getTime() - 5 * 60 * 1000), note: 'Order scheduled.' },
-        { status: 'Preparing', timestamp: new Date(now.getTime() - 2 * 60 * 1000), note: 'Chef fired roll onto tawa.' },
-      ],
-    });
-
-    console.log('[Seed] Database successfully seeded with 16 items, 2 demo users, and 2 active orders!');
+    console.log('[Seed] Database successfully seeded with 16 items, 4 students, 1 canteen admin, and 9 multi-day orders!');
     console.log('--- DEMO CREDENTIALS ---');
-    console.log('Student Account: student@demo.com / password123');
-    console.log('Canteen Account: canteen@demo.com / password123');
+    console.log('Student 1: student@demo.com / password123 (Aarav Sharma)');
+    console.log('Student 2: priya@demo.com / password123 (Priya Patel)');
+    console.log('Student 3: rohit@demo.com / password123 (Rohit Verma)');
+    console.log('Student 4: ananya@demo.com / password123 (Ananya Singh)');
+    console.log('Canteen Staff: canteen@demo.com / password123');
     console.log('------------------------');
 
     return { success: true };

@@ -17,7 +17,15 @@ import {
   Sparkles,
   RefreshCw,
   Bell,
-  Eye,
+  FileSpreadsheet,
+  Download,
+  Calendar,
+  GraduationCap,
+  Mail,
+  Phone,
+  Check,
+  ArrowUpDown,
+  Filter,
 } from 'lucide-react';
 import api from '../api';
 import LoadMeter from '../components/LoadMeter';
@@ -46,6 +54,10 @@ export default function CanteenDashboard() {
 
   // Analytics state
   const [analytics, setAnalytics] = useState(null);
+  const [analyticsDateFilter, setAnalyticsDateFilter] = useState('All');
+  const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState('');
+  const [excelDownloading, setExcelDownloading] = useState(false);
+  const [downloadSuccessToast, setDownloadSuccessToast] = useState(false);
 
   const { socket } = useSocket();
 
@@ -179,9 +191,102 @@ export default function CanteenDashboard() {
     }
   };
 
+  // 1-Click Excel / CSV Export with all student information & day-wise sales
+  const handleDownloadExcel = () => {
+    setExcelDownloading(true);
+
+    try {
+      const dataToExport = analytics?.detailedStudentOrders || [];
+      if (dataToExport.length === 0) {
+        alert('No order data available to export.');
+        setExcelDownloading(false);
+        return;
+      }
+
+      // Headers for Excel
+      const headers = [
+        'Order ID',
+        'Date',
+        'Time',
+        'Student Name',
+        'Roll / Student ID',
+        'Email Address',
+        'Phone Number',
+        'Dishes Ordered',
+        'Total Quantity',
+        'Order Total (INR)',
+        'Pickup Mode',
+        'Pickup Slot',
+        'Status',
+      ];
+
+      const escapeCell = (val) => {
+        if (val === undefined || val === null) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const rows = dataToExport.map((row) => [
+        escapeCell(row.orderNumber),
+        escapeCell(row.dateFormatted),
+        escapeCell(row.timeFormatted),
+        escapeCell(row.studentName),
+        escapeCell(row.studentId),
+        escapeCell(row.studentEmail),
+        escapeCell(row.studentPhone),
+        escapeCell(row.itemsSummary),
+        row.totalQuantity,
+        row.total,
+        escapeCell(row.pickupMode),
+        escapeCell(row.pickupSlot),
+        escapeCell(row.status),
+      ]);
+
+      // UTF-8 BOM so Excel opens with proper Indian currency and text formatting
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute(
+        'download',
+        `BreakBite_Canteen_Student_Sales_${new Date().toISOString().substring(0, 10)}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setDownloadSuccessToast(true);
+      setTimeout(() => setDownloadSuccessToast(false), 4000);
+    } catch (err) {
+      console.error('Export error:', err);
+      // Fallback to backend export endpoint
+      window.open('/api/analytics/export-csv', '_blank');
+    } finally {
+      setExcelDownloading(false);
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
     if (statusFilter === 'All') return true;
     return o.status === statusFilter;
+  });
+
+  // Filter detailed student orders for the analytics table
+  const filteredStudentOrders = (analytics?.detailedStudentOrders || []).filter((ord) => {
+    const matchesDate = analyticsDateFilter === 'All' || ord.dateKey === analyticsDateFilter;
+    const query = analyticsSearchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      ord.studentName.toLowerCase().includes(query) ||
+      ord.studentId.toLowerCase().includes(query) ||
+      ord.orderNumber.toLowerCase().includes(query) ||
+      ord.itemsSummary.toLowerCase().includes(query) ||
+      ord.studentEmail.toLowerCase().includes(query);
+
+    return matchesDate && matchesSearch;
   });
 
   return (
@@ -251,6 +356,24 @@ export default function CanteenDashboard() {
         )}
       </AnimatePresence>
 
+      {/* Excel Download Success Toast */}
+      <AnimatePresence>
+        {downloadSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-lg flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Excel Report downloaded successfully! (Formatted with student details)</span>
+            </div>
+            <Check className="w-4 h-4" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Subnav Tabs: Orders Board, Stock Control, Analytics */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
@@ -292,7 +415,7 @@ export default function CanteenDashboard() {
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          <span>Kitchen Analytics</span>
+          <span>Kitchen Analytics & Daily Reports</span>
         </button>
       </div>
 
@@ -536,9 +659,34 @@ export default function CanteenDashboard() {
         </div>
       )}
 
-      {/* TAB 3: CANTEEN ANALYTICS */}
+      {/* TAB 3: CANTEEN ANALYTICS WITH DAY-WISE MEAL TRENDS & EXCEL EXPORT */}
       {activeTab === 'analytics' && analytics && (
         <div className="space-y-6">
+          {/* Top Header with Excel Export Button */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-emerald-100 text-emerald-700">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Campus Sales & Student Orders Ledger</h2>
+                  <p className="text-xs text-slate-500">Day-wise meal popularity analysis and downloadable spreadsheet</p>
+                </div>
+              </div>
+            </div>
+
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              disabled={excelDownloading}
+              onClick={handleDownloadExcel}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl font-extrabold text-xs shadow-md shadow-emerald-600/25 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              <span>{excelDownloading ? 'Generating Excel...' : 'Download Excel Sheet (.CSV)'}</span>
+            </motion.button>
+          </div>
+
           {/* Key Metrics row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-xs">
@@ -563,6 +711,240 @@ export default function CanteenDashboard() {
               <span className="text-[10px] font-extrabold uppercase text-slate-400">Average Tray Value</span>
               <div className="text-2xl font-black text-slate-900 mt-1">₹{analytics.averageOrderValue}</div>
               <span className="text-[10px] text-slate-500 font-semibold">Per student order</span>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* FEATURE 1: KIS DIN KON SA MEAL JYADA SALE HO RAHA HAI */}
+          {/* ============================================================== */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700">
+                    <Flame className="w-4 h-4" />
+                  </span>
+                  <h3 className="font-black text-base text-slate-900">
+                    Day-Wise Best Selling Meals (Kis Din Konsa Meal Top Par Hai)
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Track day-by-day consumer demand so chef can prep ingredients in advance!
+                </p>
+              </div>
+
+              <span className="text-xs font-bold px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full">
+                {analytics.dailyMealTrends?.length || 0} Recorded Days
+              </span>
+            </div>
+
+            {/* Daily Meal Trend Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {analytics.dailyMealTrends?.map((day, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-slate-200 p-4 bg-gradient-to-b from-slate-50/50 to-white hover:border-orange-300 transition-all flex flex-col justify-between space-y-3"
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-orange-600" />
+                        <span>{day.formattedDate}</span>
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {day.totalOrders} Orders
+                      </span>
+                    </div>
+
+                    {/* Day's Top Meal Highlight */}
+                    <div className="mt-3 p-3 rounded-xl bg-orange-50/70 border border-orange-200/60">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 flex items-center gap-1">
+                        🏆 #1 Bestseller of the Day
+                      </span>
+                      <h4 className="font-extrabold text-sm text-slate-900 mt-0.5 line-clamp-1">
+                        {day.topMeal?.name}
+                      </h4>
+                      <div className="flex items-center justify-between text-xs text-slate-600 font-semibold mt-1">
+                        <span>{day.topMeal?.quantity} plates sold</span>
+                        <span className="font-bold text-orange-700">₹{day.topMeal?.revenue}</span>
+                      </div>
+                    </div>
+
+                    {/* Runner-up items */}
+                    {day.top3Dishes && day.top3Dishes.length > 1 && (
+                      <div className="mt-2.5 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                          Also Popular:
+                        </span>
+                        {day.top3Dishes.slice(1, 3).map((d, dIdx) => (
+                          <div
+                            key={dIdx}
+                            className="flex items-center justify-between text-[11px] text-slate-600"
+                          >
+                            <span className="truncate max-w-[130px] font-medium">
+                              #{dIdx + 2} {d.name}
+                            </span>
+                            <span className="text-slate-400 font-semibold">{d.quantity} sold</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-800">
+                    <span>Day Turnover</span>
+                    <span className="text-emerald-700 font-black">₹{day.totalRevenue}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* FEATURE 2: PER-DAY SALES TABLE WITH STUDENT DETAILS */}
+          {/* ============================================================== */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                    <GraduationCap className="w-4 h-4" />
+                  </span>
+                  <h3 className="font-black text-base text-slate-900">
+                    Per-Day Student Order Log & Contact Ledger
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Complete order history with student roll number, email, phone, dishes, and total amount
+                </p>
+              </div>
+
+              {/* Filter Controls: Date Selector + Search Input */}
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                {/* Date Filter Dropdown */}
+                <select
+                  value={analyticsDateFilter}
+                  onChange={(e) => setAnalyticsDateFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-hidden"
+                >
+                  <option value="All">All Recorded Dates</option>
+                  {analytics.dailyMealTrends?.map((day) => (
+                    <option key={day.dateKey} value={day.dateKey}>
+                      {day.formattedDate}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Student / Order Search */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={analyticsSearchQuery}
+                    onChange={(e) => setAnalyticsSearchQuery(e.target.value)}
+                    placeholder="Search student or token..."
+                    className="bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs focus:outline-hidden w-48"
+                  />
+                </div>
+
+                {/* Excel Download button in table header */}
+                <button
+                  type="button"
+                  onClick={handleDownloadExcel}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                  title="Export this ledger to Excel spreadsheet"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Student Orders Table */}
+            {filteredStudentOrders.length === 0 ? (
+              <div className="text-center py-8 text-xs text-slate-400">
+                No orders match your filter criteria.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 font-extrabold uppercase tracking-wider border-y border-slate-200">
+                      <th className="py-3 px-3">Date & Time</th>
+                      <th className="py-3 px-3">Token</th>
+                      <th className="py-3 px-3">Student Name & ID</th>
+                      <th className="py-3 px-3">Contact</th>
+                      <th className="py-3 px-3">Dishes Ordered</th>
+                      <th className="py-3 px-3">Slot / Mode</th>
+                      <th className="py-3 px-3 text-right">Amount</th>
+                      <th className="py-3 px-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredStudentOrders.map((ord) => (
+                      <tr key={ord._id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="font-bold text-slate-900">{ord.dateFormatted}</div>
+                          <div className="text-[10px] text-slate-400">{ord.timeFormatted}</div>
+                        </td>
+
+                        <td className="py-3 px-3 whitespace-nowrap font-black text-slate-900">
+                          #{ord.orderNumber}
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900">{ord.studentName}</div>
+                          <div className="text-[10px] font-semibold text-orange-600 flex items-center gap-1">
+                            <GraduationCap className="w-3 h-3" />
+                            <span>{ord.studentId}</span>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 whitespace-nowrap text-[11px] text-slate-500">
+                          <div>{ord.studentEmail}</div>
+                          <div className="text-slate-400 text-[10px]">{ord.studentPhone}</div>
+                        </td>
+
+                        <td className="py-3 px-3 max-w-xs">
+                          <span className="font-medium text-slate-800 line-clamp-2">
+                            {ord.itemsSummary}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="font-semibold text-slate-800">{ord.pickupSlot}</div>
+                          <div className="text-[10px] text-slate-400">{ord.pickupMode}</div>
+                        </td>
+
+                        <td className="py-3 px-3 whitespace-nowrap text-right font-black text-slate-900">
+                          ₹{ord.total}
+                        </td>
+
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                              ord.status === 'Ready'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : ord.status === 'Preparing'
+                                ? 'bg-amber-100 text-amber-800'
+                                : ord.status === 'Collected'
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-orange-100 text-orange-800'
+                            }`}
+                          >
+                            {ord.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100">
+              <span>Showing {filteredStudentOrders.length} student orders</span>
+              <span>All monetary totals in INR (₹)</span>
             </div>
           </div>
 
@@ -591,11 +973,11 @@ export default function CanteenDashboard() {
               </div>
             </div>
 
-            {/* Top Items */}
+            {/* Top Items Today */}
             <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
               <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                 <Flame className="w-4 h-4 text-amber-500" />
-                <span>Top Selling Dishes Today</span>
+                <span>Top Selling Dishes (Today's Leaderboard)</span>
               </h3>
 
               <div className="divide-y divide-slate-100">

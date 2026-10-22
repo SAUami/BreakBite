@@ -182,7 +182,4 @@ Frontend will open at **`http://localhost:5173`**.
    - `VITE_SOCKET_URL`: Your Render backend URL (e.g. `https://breakbite-api.onrender.com`)
 5. Deploy!
 
----
-
-## 🏆 Presentation Pitch Note for Judges
-> *"BreakBite doesn't just digitize canteen food ordering — it attacks the root problem of campus rush hours: simultaneous demand spikes. By synchronizing cooking lead-times with academic lecture bells, we transform chaotic 40-minute canteen queues into 10-second pickup handovers."*
+ 

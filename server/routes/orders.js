@@ -11,13 +11,14 @@ const {
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/role');
+const { orderLimiter } = require('../middleware/rateLimiter');
 
 // Public endpoints for previewing load & slots
 router.get('/kitchen/load', getKitchenLoad);
 router.post('/slots', getPickupSlots);
 
-// Student endpoints
-router.post('/', protect, createOrder);
+// Student endpoints (Protected with orderLimiter to prevent double-charging or race conditions)
+router.post('/', protect, orderLimiter, createOrder);
 router.get('/my-orders', protect, getMyOrders);
 router.get('/:id', protect, getOrderById);
 

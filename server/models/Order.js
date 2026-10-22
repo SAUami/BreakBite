@@ -110,4 +110,10 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High-concurrency performance indexes for rush hour query scaling
+orderSchema.index({ scheduledPickupTime: 1, status: 1 });
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ fireTime: 1, status: 1 });
+orderSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Order', orderSchema);

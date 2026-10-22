@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import useOnlineStatus from './hooks/useOnlineStatus';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import CartDrawer from './components/CartDrawer';
@@ -11,10 +13,12 @@ import CanteenDashboard from './pages/CanteenDashboard';
 import GroupCart from './pages/GroupCart';
 import Login from './pages/Login';
 import api from './api';
+import { WifiOff, ShieldCheck } from 'lucide-react';
 
 function MainApp() {
   const { user, isCanteen } = useAuth();
   const { addToCart, setIsCartOpen } = useCart();
+  const isOnline = useOnlineStatus();
 
   const [activeTab, setActiveTab] = useState('menu');
   const [trackingOrderId, setTrackingOrderId] = useState(null);
@@ -46,7 +50,7 @@ function MainApp() {
           }
         }
       } catch (err) {
-        // silent
+        // silent recovery
       }
     };
 
@@ -87,6 +91,14 @@ function MainApp() {
 
   return (
     <div className="min-h-screen flex flex-col bg-amber-50/30">
+      {/* Network Offline Auto-Defense Banner */}
+      {!isOnline && (
+        <div className="bg-amber-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-center gap-2 sticky top-0 z-50 shadow-md">
+          <WifiOff className="w-4 h-4 animate-bounce" />
+          <span>You appear to be offline. Reconnecting to GIIT Canteen automatically...</span>
+        </div>
+      )}
+
       <Navbar
         onNavigate={handleNavigate}
         activeTab={activeTab}
@@ -128,10 +140,12 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <MainApp />
-      </CartProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <MainApp />
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

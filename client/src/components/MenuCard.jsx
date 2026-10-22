@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus, Clock, Star, Flame } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import ImageWithFallback from './ImageWithFallback';
 
 export default function MenuCard({ item }) {
   const { items, addToCart, updateQuantity } = useCart();
@@ -27,13 +28,12 @@ export default function MenuCard({ item }) {
         </div>
       )}
 
-      {/* Image container */}
+      {/* Image container with crash-proof fallback */}
       <div className="relative w-full h-36 rounded-2xl overflow-hidden bg-slate-100 mb-3">
-        <img
+        <ImageWithFallback
           src={item.image}
           alt={item.name}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          loading="lazy"
         />
 
         {/* Veg / Non-veg indicator top-right */}

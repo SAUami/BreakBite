@@ -1,31 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Sparkles, Filter, Leaf, RefreshCw, Flame, Clock } from 'lucide-react';
+import { Search, Sparkles, Filter, Leaf, RefreshCw, Flame, Clock, Zap } from 'lucide-react';
 import api from '../api';
 import MenuCard from '../components/MenuCard';
 import LoadMeter from '../components/LoadMeter';
 import { useSocket } from '../hooks/useSocket';
+import { defaultMenuItems } from '../data/defaultMenu';
 
 const categories = ['All', 'Snacks', 'Beverages', 'Meals', 'Quick Bites', 'Desserts'];
 
 export default function Menu() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // SWR Pattern: Load from localStorage first, then fallback to instant default items. 0ms initial buffering!
+  const [items, setItems] = useState(() => {
+    try {
+      const cached = localStorage.getItem('breakbite_cached_menu');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      // ignore JSON parse error
+    }
+    return defaultMenuItems;
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [isWakingUp, setIsWakingUp] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [vegOnly, setVegOnly] = useState(false);
   const { socket } = useSocket();
 
   const fetchMenu = async () => {
-    setLoading(true);
+    // Show gentle waking indicator if network request takes longer than 2.5 seconds (Render cold start)
+    const wakeupTimer = setTimeout(() => {
+      setIsWakingUp(true);
+    }, 2500);
+
     try {
       const res = await api.get('/menu');
-      if (res.data.success) {
+      if (res.data.success && Array.isArray(res.data.items) && res.data.items.length > 0) {
         setItems(res.data.items);
+        try {
+          localStorage.setItem('breakbite_cached_menu', JSON.stringify(res.data.items));
+        } catch (e) {
+          // ignore quota error
+        }
       }
     } catch (err) {
-      console.warn('Failed to fetch menu:', err);
+      console.warn('Live menu fetch failed, showing cached items:', err);
     } finally {
+      clearTimeout(wakeupTimer);
+      setIsWakingUp(false);
       setLoading(false);
     }
   };
@@ -81,6 +107,31 @@ export default function Menu() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6 pb-24 sm:pb-12">
+      {/* Cloud Server Cold-Start Warmup Pill Banner */}
+      <AnimatePresence>
+        {isWakingUp && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-amber-500/10 border border-amber-500/30 text-amber-900 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs font-semibold backdrop-blur-xs shadow-xs"
+          >
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+              <span>
+                <strong>Cloud Server Waking Up:</strong> Free-tier servers spin down after 15m. Connecting to live kitchen stream...
+              </span>
+            </div>
+            <span className="text-[10px] text-amber-700 bg-amber-100 font-bold px-2 py-0.5 rounded-md hidden sm:inline">
+              Instant Cache Active
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero & Bell-Sync Value Banner */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         <div className="lg:col-span-2 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden flex flex-col justify-between">
